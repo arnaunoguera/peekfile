@@ -67,33 +67,43 @@ echo
 
 # Per file report
 echo '###############################  FILE REPORTS  ################################'
+
 # Iterating every file
 echo "$files" | while read file
 do
+    # Header
     echo
-    echo ' ################' $(basename "$file") '################'
+    echo '#################' $(basename "$file") '#################'
     echo
+    
+    # Regular file or symbolic link
     if [[ -h "$file" ]]; then
         echo "  File: $file (symbolic link)"
     else
         echo "  File: $file (regular file)"
     fi
+    
+    # Is the file readable?
     echo
     if [[ ! -r "$file" ]]; then
         echo "  This file is not readable."
         echo
         continue #If the file it not readable, I skip to the next file
     fi
+    
+    # Number of fasta sequences in the file
     Nseq=$(egrep -c '^>' "$file")
     echo "  Number of fasta sequences: $Nseq"
     echo
     if [[ Nseq -eq 0 ]]; then
         continue #If the file contains no sequences, skip to the next
     fi
+    
     # Counting characters. I replace gaps and spaces with gsub and eliminate newlines setting the ORS in awk to nothing
     Nchar=$(cat "$file" | awk 'BEGIN {ORS=""} !/^>/{gsub("-","",$0); gsub(" ","",$0); print $0}' | wc -m)
     echo "  Total sequence length: $Nchar"
     echo
+    
     # To determine whether it contains amino acid or nucleotide sequences, I count how many characters match [ACGTUN] (all possibilities for nucleotides
     Nnuc=$(egrep -v '^>' "$file" | grep -o "[ACGTUNactgun]" | wc -l)
     if [[ $Nnuc -ge $Nchar ]]; then #To be nucleotides, there should be as many ACTGNU as total sequence characters
@@ -102,4 +112,21 @@ do
         echo "  Sequence type: amino acids" 
     fi
     echo
+    
+    # Finally, print file content if N > 0
+    if [[ $N -gt 0 ]]; then
+         echo "============ File content ============="
+         echo
+         #Checking if the file has 2N lines or less
+         if [[ $(cat "$file" | wc -l) -le $((2*$N)) ]]; then
+             cat "$file"
+         else
+             head -n $N "$file"
+             echo ...
+             tail -n $N "$file"
+         fi
+         echo
+         echo "======================================="
+    fi
 done
+echo
